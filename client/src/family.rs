@@ -11,7 +11,7 @@ pub(super) struct Node {
 
 pub(super) fn forest(entries: &[MarketplaceEntry], installed: bool, query: &str) -> Vec<Node> {
     let by_git: BTreeMap<_, _> = entries.iter().map(|e| (e.git.clone(), e)).collect();
-    let query = query.to_lowercase();
+    let query = query.trim().to_lowercase();
     let matches = |e: &MarketplaceEntry| {
         format!(
             "{} {} {} {}",

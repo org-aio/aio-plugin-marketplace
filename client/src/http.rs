@@ -63,6 +63,11 @@ pub(super) async fn get<T: for<'de> Deserialize<'de>>(path: &str) -> Result<T, S
 }
 
 async fn error(response: Response) -> String {
+    match response.status() {
+        401 => return "会话已失效，请重新登录".into(),
+        403 => return "你没有执行此操作的权限，请联系工作区管理员".into(),
+        _ => {}
+    }
     let body = response.text().await.unwrap_or_default();
     serde_json::from_str::<serde_json::Value>(&body)
         .ok()

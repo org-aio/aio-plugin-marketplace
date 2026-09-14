@@ -64,11 +64,14 @@ pub(super) fn PluginDetails(
         } }
         div { class: "extension-browser__actions",
             if !entry.installed { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"install".into())) }, Download {} "安装" } }
-            else { span { class: "admin-meta", "{entry.state_label()}" } }
+            else {
+                span { class: "admin-status", "data-enabled": entry.state == Some(PluginState::Active), "工作区：{entry.state_label()}" }
+                if entry.state != Some(PluginState::Active) { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"enable".into())) }, Play {} "启用" } }
+            }
             if entry.installed { details { class: "extension-browser__menu",
                 summary { title: "管理插件", aria_label: "管理插件", Settings {} }
                 div { role: "menu", aria_label: "插件操作",
-                    for (action,label) in if entry.state==Some(PluginState::Active) { vec![("disable","停用"),("rollback","回滚"),("uninstall","卸载")] } else { vec![("enable","启用"),("rollback","回滚"),("uninstall","卸载")] } {
+                    for (action,label) in if entry.state==Some(PluginState::Active) { vec![("disable","停用"),("rollback","回退版本"),("uninstall","卸载")] } else { vec![("rollback","回退版本"),("uninstall","卸载")] } {
                         button { role: "menuitem", disabled: busy, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),action.into())) },
                             match action { "disable"=>rsx!{Pause{}},"enable"=>rsx!{Play{}},"rollback"=>rsx!{RotateCcw{}},_=>rsx!{Trash2{}} } "{label}"
                         }
@@ -92,15 +95,12 @@ pub(super) fn PluginDetails(
             }
         }
         nav { class: "extension-browser__tabs", role: "tablist", aria_label: "插件详情分类",
-            for (id,label) in [("details","详情"),("versions","版本记录"),("permissions","权限")] { button { role: "tab", "aria-selected": tab()==id, onclick: move |_| tab.set(id.into()), "{label}" } }
+            for (id,label) in [("details","介绍"),("versions","版本与发布"),("permissions","权限")] { button { role: "tab", "aria-selected": tab()==id, onclick: move |_| tab.set(id.into()), "{label}" } }
         }
         div { role: "tabpanel",
             match tab().as_str() {
-                "permissions" => rsx! { dl { class: "admin-details", dt { "运行目标" } dd { "{entry.runtime.as_deref().unwrap_or(\"未声明\")}" } dt { "网络" } dd { "{entry.capabilities.network.join(\", \")}" } dt { "文件系统" } dd { "{entry.capabilities.filesystem.join(\", \")}" } dt { "数据库" } dd { if entry.capabilities.database { "已申请" } else { "未申请" } } } },
-                "versions" => rsx! { ul { class: "extension-browser__versions", if let Some(info)=information.as_ref() {
-                    for build in &info.builds { li { strong { "{build.state} · {short_revision(&build.source_revision)}" } p { "{build.updated_at}" } if let Some(error)=&build.error { pre { "{error}" } if build.state=="failed" { Button { size: ButtonSize::Sm, variant: ButtonVariant::Outline, disabled: busy, onclick: { let entry=entry.clone();let id=build.id;move |_| on_action.call((entry.clone(),format!("retry:{id}"))) }, RotateCcw {} "重试构建" } } } } }
-                    for version in &info.versions { li { strong { "{version.version}" } p { "{version.created_at}" } code { "{version.source_revision.as_deref().unwrap_or(&version.revision)}" } } }
-                } } },
+                "permissions" => rsx! { dl { class: "admin-details", dt { "运行方式" } dd { match entry.runtime.as_deref() { Some("process") => "独立进程", Some("wasm-component") => "隔离组件", Some("page-definition") => "页面定义", _ => "插件声明的运行环境" } } dt { "网络访问" } dd { if entry.capabilities.network.is_empty() { "未申请" } else { "{entry.capabilities.network.join(\", \")}" } } dt { "文件访问" } dd { if entry.capabilities.filesystem.is_empty() { "未申请" } else { "{entry.capabilities.filesystem.join(\", \")}" } } dt { "数据库" } dd { if entry.capabilities.database { "已申请" } else { "未申请" } } } },
+                "versions" => rsx! { if let Some(info)=information.as_ref() { super::releases::ReleaseHistory { info: info.clone(), entry: entry.clone(), busy, on_action } } else if let Some(Err(error))=details.read().as_ref() { az_ui_components::admin::RequestState { error: error.clone() } } else { az_ui_components::admin::RequestState {} } },
                 _ => rsx! { if let Some(info)=information.as_ref() { if info.readme.is_empty() { p { "{entry.summary}" } p { class: "admin-meta", "此版本未提供 README。" } } else { Markdown { source: info.readme.clone(), link_base, image_base } } } else if let Some(Err(error))=details.read().as_ref() { p { role: "alert", "{error}" } } else { p { role: "status", "正在读取 README" } } },
             }
         }

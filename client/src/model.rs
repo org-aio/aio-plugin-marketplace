@@ -64,7 +64,7 @@ pub(super) fn short_revision(value: &str) -> &str {
     value.get(..12).unwrap_or(value)
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub(super) struct PluginDetailsView {
     pub readme: String,
     pub version: Option<String>,
@@ -73,7 +73,7 @@ pub(super) struct PluginDetailsView {
     pub builds: Vec<BuildView>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(super) struct PublishedVersion {
     pub revision: String,
     pub version: String,
@@ -81,7 +81,7 @@ pub(super) struct PublishedVersion {
     pub created_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub(super) struct BuildView {
     pub id: i64,
     pub source_revision: String,

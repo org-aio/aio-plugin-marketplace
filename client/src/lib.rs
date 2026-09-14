@@ -3,6 +3,7 @@ mod family;
 mod http;
 mod model;
 mod page;
+mod releases;
 mod tree;
 
 use az_dioxus_admin_shell::{ApplicationPage, ApplicationPlugin, ApplicationScene};

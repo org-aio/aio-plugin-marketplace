@@ -118,7 +118,7 @@ dependencies = [
 [[package]]
 name = "az-admin-shell-core"
 version = "2026.8.13"
-source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=22ee3cb9324f90e1833080d01663b92c28929c75#22ee3cb9324f90e1833080d01663b92c28929c75"
+source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=cc676107118a3fa83ac891dd97e35279ab9bebbd#cc676107118a3fa83ac891dd97e35279ab9bebbd"
 dependencies = [
  "anyhow",
  "convert_case",
@@ -133,7 +133,7 @@ dependencies = [
 [[package]]
 name = "az-dioxus-admin-shell"
 version = "2026.8.17"
-source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=22ee3cb9324f90e1833080d01663b92c28929c75#22ee3cb9324f90e1833080d01663b92c28929c75"
+source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=cc676107118a3fa83ac891dd97e35279ab9bebbd#cc676107118a3fa83ac891dd97e35279ab9bebbd"
 dependencies = [
  "anyhow",
  "az-admin-shell-core",
@@ -150,12 +150,14 @@ dependencies = [
 [[package]]
 name = "az-ui-components"
 version = "2026.8.17"
-source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=22ee3cb9324f90e1833080d01663b92c28929c75#22ee3cb9324f90e1833080d01663b92c28929c75"
+source = "git+https://github.com/zjarlin/dioxus-admin-workbench.git?rev=cc676107118a3fa83ac891dd97e35279ab9bebbd#cc676107118a3fa83ac891dd97e35279ab9bebbd"
 dependencies = [
+ "az-admin-shell-core",
  "dioxus",
  "dioxus-icons",
  "manganis",
  "pulldown-cmark",
+ "serde_json",
  "url",
 ]
 
