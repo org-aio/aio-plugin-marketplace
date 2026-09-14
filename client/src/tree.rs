@@ -36,6 +36,7 @@ pub(super) fn PluginTree(
             else if search.trim().is_empty() { EmptyState { title: "当前工作区尚未安装插件" } }
             else { EmptyState { title: "没有找到匹配的插件", Button { variant: ButtonVariant::Ghost, onclick: move |_| on_search.call(String::new()), "清空搜索" } } }
         }
+        if !no_matches {
         div {role:"tree",aria_label:"插件",onkeydown:move|e:KeyboardEvent| {
             let key=match e.key(){Key::ArrowDown=>"down",Key::ArrowUp=>"up",Key::Home=>"home",Key::End=>"end",_=>return};
             e.prevent_default();
@@ -49,6 +50,7 @@ pub(super) fn PluginTree(
                     }}
                 }
             }
+        }
         }
     }
 }
