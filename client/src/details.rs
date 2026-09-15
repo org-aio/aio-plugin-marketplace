@@ -8,7 +8,7 @@ use az_ui_components::{
 };
 use dioxus::prelude::*;
 use dioxus_icons::lucide::{
-    ArrowLeft, Download, Package, Pause, Play, RotateCcw, Settings, Trash2,
+    ArrowLeft, Download, Eye, EyeOff, Package, Pause, Play, RotateCcw, Settings, Trash2,
 };
 
 #[component]
@@ -71,6 +71,9 @@ pub(super) fn PluginDetails(
             if entry.installed { details { class: "extension-browser__menu",
                 summary { title: "管理插件", aria_label: "管理插件", Settings {} }
                 div { role: "menu", aria_label: "插件操作",
+                    button { role: "menuitem", disabled: busy, onclick: { let entry=entry.clone(); move |_| on_action.call((entry.clone(), if entry.menu_hidden {"show-menu"} else {"hide-menu"}.into())) },
+                        if entry.menu_hidden { Eye {} "显示菜单" } else { EyeOff {} "隐藏菜单" }
+                    }
                     for (action,label) in if entry.state==Some(PluginState::Active) { vec![("disable","停用"),("rollback","回退版本"),("uninstall","卸载")] } else { vec![("rollback","回退版本"),("uninstall","卸载")] } {
                         button { role: "menuitem", disabled: busy, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),action.into())) },
                             match action { "disable"=>rsx!{Pause{}},"enable"=>rsx!{Play{}},"rollback"=>rsx!{RotateCcw{}},_=>rsx!{Trash2{}} } "{label}"
@@ -80,6 +83,8 @@ pub(super) fn PluginDetails(
                 }
             } }
         }
+        if entry.installed { p { class: "admin-meta", "租户成员自动获得插件全部权限，无需按角色配置。" } }
+        if entry.menu_hidden { p { class: "admin-meta", "菜单已隐藏，插件继续运行，业务数据保留。可在管理插件中恢复显示。" } }
         if entry.parent_git.is_some() {
             p { class: "admin-meta", "父插件：{parent.map(|p|p.title.as_str()).or(entry.parent_title.as_deref()).unwrap_or(\"尚未发布\")}" }
             if !parent_ready { if let Some(parent) = parent {

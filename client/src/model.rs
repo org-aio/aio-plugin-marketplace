@@ -15,6 +15,8 @@ pub(super) struct MarketplaceEntry {
     pub license: String,
     pub tags: Vec<String>,
     pub installed: bool,
+    #[serde(default)]
+    pub menu_hidden: bool,
     pub source_id: Option<String>,
     pub state: Option<PluginState>,
     pub active_revision: Option<String>,
