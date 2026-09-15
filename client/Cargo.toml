@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+az-tool = { git = "https://github.com/zjarlin/aio-platform.git", rev = "4d27918edc289569885c7c5a0a7042c7bbbc32ec" }
 az-dioxus-admin-shell = { git = "https://github.com/zjarlin/dioxus-admin-workbench.git", rev = "cc676107118a3fa83ac891dd97e35279ab9bebbd" }
 az-ui-components = { git = "https://github.com/zjarlin/dioxus-admin-workbench.git", rev = "cc676107118a3fa83ac891dd97e35279ab9bebbd" }
 dill = "0.15.0"

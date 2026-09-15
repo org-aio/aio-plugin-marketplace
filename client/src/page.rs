@@ -69,6 +69,10 @@ pub(super) fn MarketplacePage() -> Element {
         });
     });
     let action = use_callback(move |(entry, action): (MarketplaceEntry, String)| {
+        if entry.cli.is_some() {
+            status.set(Some((true, "CLI 请使用安装到本机入口".into())));
+            return;
+        }
         if busy() {
             return;
         }
@@ -111,7 +115,9 @@ pub(super) fn MarketplacePage() -> Element {
                 else if !loaded() { RequestState {} }
             },
             if let Some((error,message)) = status() { StatusMessage { error, message } }
-            if let Some(entry) = current { PluginDetails { key: "{entry.git}", entry, entries: entries(), busy: busy(), refresh: refresh(), on_action: move |value| action.call(value), on_back: move |_| detail_open.set(false) } }
+            if let Some(entry) = current {
+                if let Some(manifest) = entry.cli.clone() { super::cli::CliDetails { key: "{entry.git}", manifest, on_back: move |_| detail_open.set(false) } }
+                else { PluginDetails { key: "{entry.git}", entry, entries: entries(), busy: busy(), refresh: refresh(), on_action: move |value| action.call(value), on_back: move |_| detail_open.set(false) } } }
             else if !loaded() { RequestState {} }
             else { az_ui_components::admin::EmptyState { title: "从插件开始扩展工作台", detail: "官方发布的插件会自动上架，在左侧选择插件查看介绍和安装。", a { href: "https://github.com/zjarlin/aio-platform/blob/main/docs/plugin/README.md", target: "_blank", rel: "noopener noreferrer", "查看中文开发指南 ↗" } } }
         }

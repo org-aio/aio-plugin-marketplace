@@ -16,6 +16,7 @@ name = "aio-plugin-marketplace-client"
 version = "0.1.0"
 dependencies = [
  "az-dioxus-admin-shell",
+ "az-tool",
  "az-ui-components",
  "dill",
  "dioxus",
@@ -145,6 +146,18 @@ dependencies = [
  "manganis",
  "rudi",
  "serde_json",
+]
+
+[[package]]
+name = "az-tool"
+version = "0.1.0"
+source = "git+https://github.com/zjarlin/aio-platform.git?rev=4d27918edc289569885c7c5a0a7042c7bbbc32ec#4d27918edc289569885c7c5a0a7042c7bbbc32ec"
+dependencies = [
+ "anyhow",
+ "semver",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1909,6 +1922,12 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "semver"
+version = "1.0.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "send_wrapper"

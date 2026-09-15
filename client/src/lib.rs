@@ -1,3 +1,4 @@
+mod cli;
 mod details;
 mod family;
 mod http;

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub(super) struct MarketplaceEntry {
     #[serde(default)]
+    pub cli: Option<az_tool::ToolManifest>,
+    #[serde(default)]
     pub parent_git: Option<String>,
     #[serde(default)]
     pub parent_title: Option<String>,
@@ -47,7 +49,9 @@ pub(super) struct InstallRequest {
 
 impl MarketplaceEntry {
     pub fn state_label(&self) -> &'static str {
-        if !self.installed {
+        if self.cli.is_some() {
+            "本机 CLI"
+        } else if !self.installed {
             "未安装"
         } else {
             match self.state {

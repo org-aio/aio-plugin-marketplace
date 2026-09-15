@@ -21,6 +21,11 @@ pub(super) fn PluginTree(
     on_search: Callback<String>,
     on_select: Callback<String>,
 ) -> Element {
+    let mut cli_only = use_signal(|| false);
+    let entries = entries
+        .into_iter()
+        .filter(|entry| !cli_only() || entry.cli.is_some())
+        .collect::<Vec<_>>();
     let mut installed_open = use_signal(|| true);
     let mut available_open = use_signal(|| true);
     let no_matches = forest(&entries, true, search.trim()).is_empty()
@@ -30,6 +35,10 @@ pub(super) fn PluginTree(
         div { class:"extension-browser__search", Input {aria_label:"搜索插件",placeholder:"搜索插件",value:search.clone(),oninput:move|e:FormEvent|on_search.call(e.value())} }
         div { class: "extension-browser__filters", role: "group", aria_label: "插件筛选",
             for (only, label) in [(false, "全部"), (true, "已安装")] { Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: (installed_only == only).to_string(), onclick: move |_| on_filter.call(only), "{label}" } }
+        }
+        div { class: "extension-browser__filters", role: "group", aria_label: "插件类型",
+            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: (!cli_only()).to_string(), onclick: move |_| cli_only.set(false), "所有类型" }
+            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: cli_only().to_string(), onclick: move |_| cli_only.set(true), "CLI" }
         }
         if loaded && no_matches {
             if entries.is_empty() { EmptyState { title: "还没有发布的插件", detail: "插件构建和发布成功后会自动出现在这里。" } }
