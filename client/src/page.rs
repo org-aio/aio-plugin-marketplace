@@ -6,12 +6,33 @@ use super::{
 };
 use az_ui_components::{
     admin::{AsyncResult, DeleteRecordsDialog, RequestState, StatusMessage},
+    button::Button,
     extension_browser::ExtensionBrowser,
 };
 use dioxus::prelude::*;
 
 #[allow(non_snake_case)]
 pub(super) fn MarketplacePage() -> Element {
+    let mut registering = use_signal(|| false);
+    let mut pending_install = use_signal(|| None::<String>);
+    use_effect(move || {
+        if let Some(url) = pending_install() {
+            pending_install.set(None);
+            spawn(async move {
+                let _ = document::eval(&format!(
+                    "window.location.href={};return true;",
+                    serde_json::to_string(&url).unwrap_or_default()
+                ))
+                .await;
+            });
+        }
+    });
+    let access = use_resource(|| async {
+        http::get::<bool>("/api/runtime/tools/access")
+            .await
+            .unwrap_or(false)
+    });
+    let can_manage = access.read().as_ref().copied().unwrap_or(false);
     let mut entries = use_signal(Vec::<MarketplaceEntry>::new);
     let mut selected = use_signal(|| None::<String>);
     let mut search = use_signal(String::new);
@@ -110,17 +131,19 @@ pub(super) fn MarketplacePage() -> Element {
     rsx! {
         ExtensionBrowser { detail_open: detail_open(),
             sidebar: rsx! {
+                if can_manage { div { class: "extension-browser__search", Button { onclick: move |_| registering.set(true), "添加 CLI" } } }
                 PluginTree { entries: entries(), selected: selected(), search: search(), installed_only: installed_only(), loaded: loaded(), on_filter: move |value| installed_only.set(value), on_search: move |value| search.set(value), on_select: move |git| { selected.set(Some(git)); detail_open.set(true); } }
                 if let Some(error) = load_error() { RequestState { error, on_retry: move |_| refresh += 1 } }
                 else if !loaded() { RequestState {} }
             },
             if let Some((error,message)) = status() { StatusMessage { error, message } }
             if let Some(entry) = current {
-                if let Some(manifest) = entry.cli.clone() { super::cli::CliDetails { key: "{entry.git}", manifest, on_back: move |_| detail_open.set(false) } }
+                if let Some(manifest) = entry.cli.clone() { super::cli::CliDetails { key: "{entry.git}", manifest, can_manage, refresh: refresh(), on_updated: move |_| refresh += 1, on_back: move |_| detail_open.set(false) } }
                 else { PluginDetails { key: "{entry.git}", entry, entries: entries(), busy: busy(), refresh: refresh(), on_action: move |value| action.call(value), on_back: move |_| detail_open.set(false) } } }
             else if !loaded() { RequestState {} }
             else { az_ui_components::admin::EmptyState { title: "从插件开始扩展工作台", detail: "官方发布的插件会自动上架，在左侧选择插件查看介绍和安装。", a { href: "https://github.com/zjarlin/aio-platform/blob/main/docs/plugin/README.md", target: "_blank", rel: "noopener noreferrer", "查看中文开发指南 ↗" } } }
         }
+        if registering() { super::cli::RegisterDialog { on_close: move |_| registering.set(false), on_created: move |(manifest, install_now): (az_tool::ToolManifest, bool)| { if install_now { pending_install.set(Some(az_tool::InstallLink { id: manifest.id.clone(), version: manifest.version.clone() }.to_string())); } registering.set(false); selected.set(Some(format!("aio-tool:{}", manifest.id))); detail_open.set(true); installed_only.set(false); search.set(String::new()); refresh += 1; } } }
         if let Some(entry) = removing() {
             DeleteRecordsDialog { title: "卸载插件", confirm_label: "确认卸载", warning: "移除当前租户的插件页面与运行实例，保留业务数据和版本历史。", items: vec![entry], item_label: |entry: MarketplaceEntry| entry.title,
                 delete: |entry: MarketplaceEntry| -> AsyncResult<()> { Box::pin(async move { http::action(entry.source_id.as_deref().unwrap_or_default(),"uninstall").await }) },

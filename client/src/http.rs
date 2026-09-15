@@ -62,7 +62,7 @@ pub(super) async fn get<T: for<'de> Deserialize<'de>>(path: &str) -> Result<T, S
         .map_err(|e| e.to_string())
 }
 
-async fn error(response: Response) -> String {
+pub(super) async fn error(response: Response) -> String {
     match response.status() {
         401 => return "会话已失效，请重新登录".into(),
         403 => return "你没有执行此操作的权限，请联系工作区管理员".into(),
