@@ -20,6 +20,15 @@ pub(super) fn PluginDetails(
     on_action: Callback<(MarketplaceEntry, String)>,
     on_back: Callback<()>,
 ) -> Element {
+    let settings_git = entry.git.clone();
+    let configuration = use_resource(use_reactive!(|settings_git, refresh| async move {
+            let git = settings_git;
+            let _ = refresh;
+            let catalog: serde_json::Value = http::get("/api/runtime/catalog").await?;
+            let source = catalog["plugins"].as_array().and_then(|plugins| plugins.iter().find(|plugin| plugin["git"] == git)).and_then(|plugin|plugin["source_id"].as_str());
+            Ok::<_, String>(catalog["plugin_settings"].as_array().and_then(|pages| pages.iter().find(|page|page["source_id"].as_str()==source)).and_then(|page|page["page_id"].as_str()).map(str::to_owned))
+    }));
+    let settings_page = configuration.read().as_ref().and_then(|value|value.as_ref().ok()).cloned().flatten();
     let mut tab = use_signal(|| "details".to_owned());
     let mut retained = use_signal(|| None::<PluginDetailsView>);
     let details = use_resource(use_reactive!(|entry, refresh| async move {
@@ -63,6 +72,15 @@ pub(super) fn PluginDetails(
             p { "{entry.summary}" }
         } }
         div { class: "extension-browser__actions",
+            if entry.state == Some(PluginState::Active) {
+                if let Some(page_id) = settings_page {
+                    Button { variant: ButtonVariant::Outline, onclick: move |_| {
+                        let bridge = document::eval("const pageId = await dioxus.recv(); window.dispatchEvent(new CustomEvent('aio:plugin-settings', {detail:{pageId}}));");
+                        let _ = bridge.send(page_id.clone());
+                    }, Settings {} "插件设置" }
+                }
+            }
+
             if !entry.installed { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"install".into())) }, Download {} "安装" } }
             else {
                 span { class: "admin-status", "data-enabled": entry.state == Some(PluginState::Active), "工作区：{entry.state_label()}" }
