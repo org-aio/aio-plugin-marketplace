@@ -91,7 +91,7 @@ pub(super) fn MarketplacePage() -> Element {
     });
     let action = use_callback(move |(entry, action): (MarketplaceEntry, String)| {
         if entry.cli.is_some() {
-            status.set(Some((true, "CLI 请使用安装到本机入口".into())));
+            status.set(Some((true, "CLI 请在详情中选择目标设备".into())));
             return;
         }
         if busy() {

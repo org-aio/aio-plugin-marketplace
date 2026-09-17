@@ -1,4 +1,5 @@
 mod details;
+mod devices;
 mod documentation;
 mod editor;
 mod http;

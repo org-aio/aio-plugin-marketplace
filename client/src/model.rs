@@ -52,7 +52,11 @@ pub(super) struct InstallRequest {
 impl MarketplaceEntry {
     pub fn state_label(&self) -> &'static str {
         if self.cli.is_some() {
-            "本机 CLI"
+            if self.installed {
+                "已安装到设备"
+            } else {
+                "设备 CLI"
+            }
         } else if !self.installed {
             "未安装"
         } else {
