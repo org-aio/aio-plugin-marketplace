@@ -39,7 +39,7 @@ pub(crate) fn CliDetails(
         div { class: "extension-browser__actions",
             if can_manage {
                 Button { variant: ButtonVariant::Outline, onclick: move |_| editing.set(true), "编辑标题和备注" }
-                Button { variant: ButtonVariant::Outline, onclick: move |_| removing.set(true), "从市场删除" }
+                Button { variant: ButtonVariant::Outline, onclick: move |_| removing.set(true), "从插件市场移除" }
             }
         }
         super::devices::DeviceInstallations { manifest: manifest.clone(), refresh, on_updated }
@@ -66,7 +66,7 @@ pub(crate) fn CliDetails(
         }
         if editing() { super::editor::MetadataDialog { manifest: manifest.clone(), on_close: move |_| editing.set(false), on_saved: move |_| { editing.set(false); on_updated.call(()); } } }
         if removing() {
-            DeleteRecordsDialog { title: "从市场删除 CLI", confirm_label: "确认删除", warning: "删除后，所有用户的市场列表将不再显示此条目。设备上已安装的软件和配置保留；如需卸载，请在相应设备处理。", items: vec![manifest.clone()], item_label: |item: ToolManifest| item.title,
+            DeleteRecordsDialog { title: "从插件市场移除", confirm_label: "确认移除", warning: "移除后，所有用户的市场列表将不再显示此条目。设备上已安装的软件和配置保留；如需卸载，请在相应设备处理。", items: vec![manifest.clone()], item_label: |item: ToolManifest| item.title,
                 delete: |item: ToolManifest| -> AsyncResult<()> { Box::pin(async move { super::http::remove(&item.id).await }) },
                 on_close: move |_| removing.set(false), on_deleted: move |_| { removing.set(false); on_updated.call(()); },
             }
