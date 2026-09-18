@@ -17,6 +17,16 @@ pub(super) async fn install(request: InstallRequest) -> Result<(), String> {
     finish(response).await
 }
 
+pub(super) async fn remove(git: &str) -> Result<(), String> {
+    let response = Request::delete("/api/runtime/marketplace")
+        .json(&serde_json::json!({"git": git}))
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    finish(response).await
+}
+
 pub(super) async fn action(source: &str, action: &str) -> Result<(), String> {
     if source.is_empty() {
         return Err("插件来源不存在".into());

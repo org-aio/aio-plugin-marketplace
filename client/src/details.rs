@@ -16,6 +16,7 @@ pub(super) fn PluginDetails(
     entry: MarketplaceEntry,
     entries: Vec<MarketplaceEntry>,
     busy: bool,
+    can_manage: bool,
     refresh: u64,
     on_action: Callback<(MarketplaceEntry, String)>,
     on_back: Callback<()>,
@@ -90,6 +91,12 @@ pub(super) fn PluginDetails(
             p { "{entry.summary}" }
         } }
         div { class: "extension-browser__actions",
+            if can_manage {
+                Button { variant: ButtonVariant::Outline, disabled: busy,
+                    onclick: { let entry = entry.clone(); move |_| on_action.call((entry.clone(), "remove".into())) },
+                    Trash2 {} "从市场删除"
+                }
+            }
             if entry.state == Some(PluginState::Active) {
                 if let Some(page_id) = settings_page {
                     Button { variant: ButtonVariant::Outline, onclick: move |_| {

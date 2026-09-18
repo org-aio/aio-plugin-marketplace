@@ -39,6 +39,7 @@ pub(super) fn MarketplacePage() -> Element {
     let mut installed_only = use_signal(|| false);
     let mut detail_open = use_signal(|| false);
     let mut removing = use_signal(|| None::<MarketplaceEntry>);
+    let mut delisting = use_signal(|| None::<MarketplaceEntry>);
     let mut busy = use_signal(|| false);
     let mut status = use_signal(|| None::<(bool, String)>);
     let mut loaded = use_signal(|| false);
@@ -101,6 +102,12 @@ pub(super) fn MarketplacePage() -> Element {
             removing.set(Some(entry));
             return;
         }
+        if action == "remove" {
+            if can_manage {
+                delisting.set(Some(entry));
+            }
+            return;
+        }
         busy.set(true);
         status.set(None);
         spawn(async move {
@@ -139,7 +146,7 @@ pub(super) fn MarketplacePage() -> Element {
             if let Some((error,message)) = status() { StatusMessage { error, message } }
             if let Some(entry) = current {
                 if let Some(manifest) = entry.cli.clone() { super::cli::CliDetails { key: "{entry.git}", manifest, can_manage, refresh: refresh(), on_updated: move |_| refresh += 1, on_back: move |_| detail_open.set(false) } }
-                else { PluginDetails { key: "{entry.git}", entry, entries: entries(), busy: busy(), refresh: refresh(), on_action: move |value| action.call(value), on_back: move |_| detail_open.set(false) } } }
+                else { PluginDetails { key: "{entry.git}", entry, entries: entries(), busy: busy(), can_manage, refresh: refresh(), on_action: move |value| action.call(value), on_back: move |_| detail_open.set(false) } } }
             else if !loaded() { RequestState {} }
             else { az_ui_components::admin::EmptyState { title: "从插件开始扩展工作台", detail: "官方发布的插件会自动上架，在左侧选择插件查看介绍和安装。", a { href: "https://github.com/zjarlin/aio-platform/blob/main/docs/plugin/README.md", target: "_blank", rel: "noopener noreferrer", "查看中文开发指南 ↗" } } }
         }
@@ -148,6 +155,15 @@ pub(super) fn MarketplacePage() -> Element {
             DeleteRecordsDialog { title: "卸载插件", confirm_label: "确认卸载", warning: "移除当前租户的插件页面与运行实例，保留业务数据和版本历史。", items: vec![entry], item_label: |entry: MarketplaceEntry| entry.title,
                 delete: |entry: MarketplaceEntry| -> AsyncResult<()> { Box::pin(async move { http::action(entry.source_id.as_deref().unwrap_or_default(),"uninstall").await }) },
                 on_close: move |_| removing.set(None), on_deleted: move |_| { removing.set(None); refresh += 1; },
+            }
+        }
+        if let Some(entry) = delisting() {
+            DeleteRecordsDialog { title: "从市场删除", confirm_label: "确认删除",
+                warning: "对所有用户下架此插件，禁止新的安装。已安装实例、业务数据和版本历史保留；后续发布不会自动重新上架。",
+                items: vec![entry], item_label: |entry: MarketplaceEntry| entry.title,
+                delete: |entry: MarketplaceEntry| -> AsyncResult<()> { Box::pin(async move { http::remove(&entry.git).await }) },
+                on_close: move |_| delisting.set(None),
+                on_deleted: move |_| { delisting.set(None); detail_open.set(false); refresh += 1; },
             }
         }
     }
