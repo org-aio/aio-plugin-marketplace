@@ -1,4 +1,4 @@
-use az_tool::{InstallLink, ToolManifest};
+use az_tool::ToolManifest;
 use az_ui_components::{
     admin::{AsyncResult, EditorDialog, RequestState, StatusMessage},
     button::{Button, ButtonVariant},
@@ -72,6 +72,7 @@ pub(super) fn DeviceInstallations(
     let id = manifest.id.clone();
     let mut pending = use_signal(|| None::<Device>);
     let mut revision = use_signal(|| 0_u64);
+    let mut local_error = use_signal(|| None::<String>);
     let resource = use_resource(use_reactive((&id, &refresh), move |(id, _)| {
         let _ = revision();
         async move {
@@ -95,13 +96,21 @@ pub(super) fn DeviceInstallations(
         section { class: "admin-section", aria_label: "设备安装状态",
             h2 { "设备安装状态" }
             p { class: "admin-meta", "选择要安装的设备。已安装版本来自设备回报；本机指浏览器所在电脑。" }
+            Button { variant: ButtonVariant::Outline, onclick: {
+                let manifest = manifest.clone();
+                move |_| {
+                    local_error.set(None);
+                    let parameters = serde_json::json!({"id":manifest.id,"version":manifest.version});
+                    spawn(async move { if let Err(error) = crate::http::interaction("install",parameters).await {local_error.set(Some(error));} });
+                }
+            }, "通过本机助手安装" }
+            if let Some(message) = local_error() { StatusMessage { error:true,message } }
             match state {
                 None => rsx! { RequestState {} },
                 Some(Err(error)) => rsx! { RequestState { error, on_retry: move |_| revision += 1 } },
                 Some(Ok((devices, tasks))) => rsx! {
                     if devices.is_empty() {
                         p { role: "status", "尚未配对设备，无法确认本机安装状态。" }
-                        a { class: "dx-button", "data-style": "outline", href: InstallLink { id: manifest.id.clone(), version: manifest.version.clone() }.to_string(), "通过本机助手安装" }
                     }
                     for device in devices {
                         {

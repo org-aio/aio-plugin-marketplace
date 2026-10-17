@@ -1,6 +1,5 @@
 use super::model::InstallRequest;
-use gloo_net::http::{Request, Response};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Deserialize)]
 struct RuntimeResponse<T> {
@@ -8,79 +7,107 @@ struct RuntimeResponse<T> {
 }
 
 pub(super) async fn install(request: InstallRequest) -> Result<(), String> {
-    let response = Request::post("/api/runtime/plugins/install")
-        .json(&request)
-        .map_err(|e| e.to_string())?
-        .send()
+    send::<serde_json::Value, _>("POST", "/api/runtime/plugins/install", Some(&request))
         .await
-        .map_err(|e| e.to_string())?;
-    finish(response).await
+        .map(|_| ())
 }
 
 pub(super) async fn remove(git: &str) -> Result<(), String> {
-    let response = Request::delete("/api/runtime/marketplace")
-        .json(&serde_json::json!({"git": git}))
-        .map_err(|e| e.to_string())?
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    finish(response).await
+    send::<serde_json::Value, _>(
+        "DELETE",
+        "/api/runtime/marketplace",
+        Some(&serde_json::json!({"git":git})),
+    )
+    .await
+    .map(|_| ())
 }
 
 pub(super) async fn action(source: &str, action: &str) -> Result<(), String> {
     if source.is_empty() {
         return Err("插件来源不存在".into());
     }
-    let response = Request::post(&format!("/api/runtime/plugins/{source}/{action}"))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    finish(response).await
-}
-
-pub(super) async fn retry(id: &str) -> Result<(), String> {
-    finish(
-        Request::post(&format!("/api/runtime/delivery/jobs/{id}/retry"))
-            .send()
-            .await
-            .map_err(|e| e.to_string())?,
-    )
-    .await
-}
-
-async fn finish(response: Response) -> Result<(), String> {
-    if !response.ok() {
-        return Err(error(response).await);
-    }
-    dioxus::document::eval(
-        "window.dispatchEvent(new Event('aio:catalog-invalidated')); return true;",
+    send::<serde_json::Value, ()>(
+        "POST",
+        &format!("/api/runtime/plugins/{source}/{action}"),
+        None,
     )
     .await
     .map(|_| ())
-    .map_err(|e| e.to_string())
 }
 
-pub(super) async fn get<T: for<'de> Deserialize<'de>>(path: &str) -> Result<T, String> {
-    let response = Request::get(path).send().await.map_err(|e| e.to_string())?;
-    if !response.ok() {
-        return Err(error(response).await);
-    }
-    response
-        .json::<RuntimeResponse<T>>()
-        .await
-        .map(|r| r.data)
-        .map_err(|e| e.to_string())
+pub(super) async fn retry(id: &str) -> Result<(), String> {
+    send::<serde_json::Value, ()>(
+        "POST",
+        &format!("/api/runtime/delivery/jobs/{id}/retry"),
+        None,
+    )
+    .await
+    .map(|_| ())
 }
 
-pub(super) async fn error(response: Response) -> String {
-    match response.status() {
-        401 => return "会话已失效，请重新登录".into(),
-        403 => return "你没有执行此操作的权限，请联系工作区管理员".into(),
-        _ => {}
+pub(super) async fn get<T: DeserializeOwned>(path: &str) -> Result<T, String> {
+    send::<T, ()>("GET", path, None).await
+}
+
+// 序列化数据跨消息边界传递，JSON 管理结果、错误与空响应在此统一解码。
+pub(super) async fn send<T: DeserializeOwned, B: Serialize + ?Sized>(
+    method: &str,
+    path: &str,
+    body: Option<&B>,
+) -> Result<T, String> {
+    let mut bridge = dioxus::document::eval(
+        r#"
+        const input = await dioxus.recv();
+        try {
+            const response = await window.aioPlugin.manage({ method: input.method, path: input.path,
+                headers: input.body === null ? [] : [{name:'content-type',value:'application/json'}],
+                body: input.body === null ? new Uint8Array() : new TextEncoder().encode(JSON.stringify(input.body)) });
+            const text = new TextDecoder().decode(response.body);
+            let value;
+            try { value = text ? JSON.parse(text) : {data:null}; } catch (_) { value = {error:text}; }
+            if (response.status < 200 || response.status >= 300) throw new Error(value.error || `HTTP ${response.status}`);
+            dioxus.send({value});
+        } catch (error) { dioxus.send({error:String(error.message ?? error)}); }
+    "#,
+    );
+    bridge
+        .send(serde_json::json!({"method":method,"path":path,"body":body}))
+        .map_err(|error| error.to_string())?;
+    let response: serde_json::Value = bridge.recv().await.map_err(|error| error.to_string())?;
+    if let Some(error) = response["error"].as_str() {
+        return Err(error.into());
     }
-    let body = response.text().await.unwrap_or_default();
-    serde_json::from_str::<serde_json::Value>(&body)
-        .ok()
-        .and_then(|v| v.get("error")?.as_str().map(str::to_owned))
-        .unwrap_or(body)
+    serde_json::from_value::<RuntimeResponse<T>>(response["value"].clone())
+        .map(|response| response.data)
+        .map_err(|error| error.to_string())
+}
+
+// 三个宿主动作只传递语义参数，真实地址和手势授权由正式 SDK 处理。
+pub(super) async fn interaction(
+    operation: &str,
+    parameters: serde_json::Value,
+) -> Result<(), String> {
+    let mut bridge = dioxus::document::eval(
+        r#"
+        const input = await dioxus.recv();
+        try {
+            const {aioPlugin:sdk} = window;
+            switch (input.operation) {
+                case 'download': await sdk.downloadPackage(input.parameters.revision); break;
+                case 'settings': await sdk.openSettings(input.parameters.page_id); break;
+                case 'install': await sdk.installTool(input.parameters.id, input.parameters.version); break;
+                default: throw new Error('未知宿主操作');
+            }
+            dioxus.send({});
+        } catch (error) { dioxus.send({error:String(error.message ?? error)}); }
+    "#,
+    );
+    bridge
+        .send(serde_json::json!({"operation":operation,"parameters":parameters}))
+        .map_err(|error| error.to_string())?;
+    let response: serde_json::Value = bridge.recv().await.map_err(|error| error.to_string())?;
+    match response["error"].as_str() {
+        Some(error) => Err(error.into()),
+        None => Ok(()),
+    }
 }

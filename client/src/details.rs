@@ -3,8 +3,8 @@ use super::{
     model::{MarketplaceEntry, PluginDetailsView, PluginState, short_revision},
 };
 use az_ui_components::{
+    admin::StatusMessage,
     button::{Button, ButtonSize, ButtonVariant},
-    markdown::Markdown,
 };
 use dioxus::prelude::*;
 use dioxus_icons::lucide::{
@@ -48,7 +48,18 @@ pub(super) fn PluginDetails(
         .and_then(|value| value.as_ref().ok())
         .cloned()
         .flatten();
-    let mut tab = use_signal(|| "details".to_owned());
+    let navigation = use_context::<super::navigation::Navigation>();
+    let mut interaction_error = use_signal(|| None::<String>);
+    let interaction = use_callback(
+        move |(operation, parameters): (&'static str, serde_json::Value)| {
+            interaction_error.set(None);
+            spawn(async move {
+                if let Err(error) = http::interaction(operation, parameters).await {
+                    interaction_error.set(Some(error));
+                }
+            });
+        },
+    );
     let mut retained = use_signal(|| None::<PluginDetailsView>);
     let details = use_resource(use_reactive!(|entry, refresh| async move {
         let _ = refresh;
@@ -90,6 +101,7 @@ pub(super) fn PluginDetails(
             p { "{publisher} · {information.as_ref().and_then(|d|d.version.as_deref()).unwrap_or_else(||short_revision(&entry.rev))} · {entry.license}" }
             p { "{entry.summary}" }
         } }
+        if let Some(message) = interaction_error() { StatusMessage { error:true,message } }
         div { class: "extension-browser__actions",
             if can_manage {
                 Button { variant: ButtonVariant::Outline, disabled: busy,
@@ -100,8 +112,7 @@ pub(super) fn PluginDetails(
             if entry.state == Some(PluginState::Active) {
                 if let Some(page_id) = settings_page {
                     Button { variant: ButtonVariant::Outline, onclick: move |_| {
-                        let bridge = document::eval("const pageId = await dioxus.recv(); window.dispatchEvent(new CustomEvent('aio:plugin-settings', {detail:{pageId}}));");
-                        let _ = bridge.send(page_id.clone());
+                        interaction.call(("settings",serde_json::json!({"page_id":page_id})));
                     }, Settings {} "插件设置" }
                 }
             }
@@ -110,6 +121,9 @@ pub(super) fn PluginDetails(
             else {
                 span { class: "admin-status", "data-enabled": entry.state == Some(PluginState::Active), "工作区：{entry.state_label()}" }
                 if !matches!(entry.state, Some(PluginState::Active | PluginState::Suspended)) { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"enable".into())) }, Play {} "启用" } }
+            }
+            if entry.installed && entry.active_revision.as_deref() != Some(&entry.rev) {
+                Button { disabled:busy || !parent_ready, onclick:{let entry=entry.clone();move |_|on_action.call((entry.clone(),"install".into()))}, Download {} "更新到最新版本" }
             }
             if entry.installed { details { class: "extension-browser__menu",
                 summary { title: "管理插件", aria_label: "管理插件", Settings {} }
@@ -122,7 +136,7 @@ pub(super) fn PluginDetails(
                             match action { "disable"=>rsx!{Pause{}},"enable"=>rsx!{Play{}},"rollback"=>rsx!{RotateCcw{}},_=>rsx!{Trash2{}} } "{label}"
                         }
                     }
-                    a { role: "menuitem", href: "/api/runtime/packages/{entry.rev}", download: "plugin.aio-plugin", Download {} "下载插件包" }
+                    button { role:"menuitem", onclick: {let revision=entry.rev.clone(); move |_| interaction.call(("download",serde_json::json!({"revision":revision})))}, Download {} "下载插件包" }
                 }
             } }
         }
@@ -146,13 +160,13 @@ pub(super) fn PluginDetails(
             }
         }
         nav { class: "extension-browser__tabs", role: "tablist", aria_label: "插件详情分类",
-            for (id,label) in [("details","介绍"),("versions","版本与发布"),("permissions","权限")] { button { role: "tab", "aria-selected": tab()==id, onclick: move |_| tab.set(id.into()), "{label}" } }
+            for (id,label) in [("details","介绍"),("versions","版本与发布"),("permissions","权限")] { button { role: "tab", "aria-selected": (navigation.view)().tab==id, onclick: move |_| navigation.change(|view|view.tab=id.into()), "{label}" } }
         }
         div { role: "tabpanel",
-            match tab().as_str() {
+            match (navigation.view)().tab.as_str() {
                 "permissions" => rsx! { dl { class: "admin-details", dt { "运行方式" } dd { match entry.runtime.as_deref() { Some("process") => "独立进程", Some("wasm-component") => "隔离组件", Some("page-definition") => "页面定义", _ => "插件声明的运行环境" } } dt { "网络访问" } dd { if entry.capabilities.network.is_empty() { "未申请" } else { "{entry.capabilities.network.join(\", \")}" } } dt { "文件访问" } dd { if entry.capabilities.filesystem.is_empty() { "未申请" } else { "{entry.capabilities.filesystem.join(\", \")}" } } dt { "数据库" } dd { if entry.capabilities.database { "已申请" } else { "未申请" } } } },
                 "versions" => rsx! { if let Some(info)=information.as_ref() { super::releases::ReleaseHistory { info: info.clone(), entry: entry.clone(), busy, on_action } } else if let Some(Err(error))=details.read().as_ref() { az_ui_components::admin::RequestState { error: error.clone() } } else { az_ui_components::admin::RequestState {} } },
-                _ => rsx! { if let Some(info)=information.as_ref() { if info.readme.is_empty() { p { "{entry.summary}" } p { class: "admin-meta", "此版本未提供 README。" } } else { Markdown { source: info.readme.clone(), link_base, image_base } } } else if let Some(Err(error))=details.read().as_ref() { p { role: "alert", "{error}" } } else { p { role: "status", "正在读取 README" } } },
+                _ => rsx! { if let Some(info)=information.as_ref() { if info.readme.is_empty() { p { "{entry.summary}" } p { class: "admin-meta", "此版本未提供 README。" } } else { super::documentation::ManagedMarkdown { source: info.readme.clone(), link_base, image_base } } } else if let Some(Err(error))=details.read().as_ref() { p { role: "alert", "{error}" } } else { p { role: "status", "正在读取 README" } } },
             }
         }
     }

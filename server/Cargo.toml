@@ -4,10 +4,15 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
+[[example]]
+name = "settings"
+crate-type = ["cdylib"]
+
 [dependencies]
-anyhow = "1.0.99"
-axum = "0.8.6"
-dill = "0.15.0"
+az-plugin-guest = { git = "https://github.com/org-aio/aio-platform.git", rev = "f8e6fb6a4093541ff93d1fd70c9b5497b077c5e1" }
 
 [lints]
 workspace = true

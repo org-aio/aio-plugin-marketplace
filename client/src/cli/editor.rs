@@ -26,8 +26,9 @@ pub(crate) fn RegisterDialog(
     let mut install_now = use_signal(|| true);
     let mut created = use_signal(|| None::<ToolManifest>);
     use_future(move || async move {
-        if let Ok(value) = document::eval("return /Windows/i.test(navigator.userAgent)?'windows':/Macintosh|Mac OS X/i.test(navigator.userAgent)?'macos':'linux';").await {
-            if let Some(value) = value.as_str() { platform.set(value.into()); }
+        let Ok(value) = document::eval("return /Windows/i.test(navigator.userAgent)?'windows':/Macintosh|Mac OS X/i.test(navigator.userAgent)?'macos':'linux';").await else { return; };
+        if let Some(value) = value.as_str() {
+            platform.set(value.into());
         }
     });
     rsx! {

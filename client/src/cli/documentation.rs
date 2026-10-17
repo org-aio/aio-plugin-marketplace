@@ -5,7 +5,6 @@ use az_tool::{
 use az_ui_components::{
     admin::StatusMessage,
     button::{Button, ButtonVariant},
-    markdown::Markdown,
 };
 use dioxus::prelude::*;
 
@@ -34,7 +33,7 @@ pub(super) fn Readme(manifest: ToolManifest, can_manage: bool, refresh: u64) -> 
                 match resource.read().as_ref() {
                     Some(Ok(doc)) => rsx! {
                         if let Some(error) = &doc.error { p { role: "status", "{error}" } }
-                        if !doc.readme.is_empty() { Markdown { source: doc.readme.clone(), link_base: doc.link_base.clone(), image_base: doc.image_base.clone() } }
+                        if !doc.readme.is_empty() { crate::documentation::ManagedMarkdown { source: doc.readme.clone(), link_base: doc.link_base.clone(), image_base: doc.image_base.clone() } }
                         else if doc.error.is_none() { p { "暂未获取 README。" } }
                     },
                     Some(Err(_)) => rsx! { p { "README 尚未获取，可打开项目仓库查看。" } },

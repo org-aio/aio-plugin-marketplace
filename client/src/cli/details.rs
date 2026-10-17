@@ -17,13 +17,16 @@ pub(crate) fn CliDetails(
 ) -> Element {
     let mut editing = use_signal(|| false);
     let mut removing = use_signal(|| false);
-    let mut platform = use_signal(|| "macos".to_owned());
+    let navigation = use_context::<crate::navigation::Navigation>();
+    let mut detected_platform = use_signal(|| "macos".to_owned());
     use_future(move || async move {
-        if let Ok(value) = document::eval("const p=navigator.userAgent;return /Windows/i.test(p)?'windows':/Macintosh|Mac OS X/i.test(p)?'macos':'linux';").await {
-            if let Some(value) = value.as_str() { platform.set(value.into()); }
+        let Ok(value) = document::eval("const p=navigator.userAgent;return /Windows/i.test(p)?'windows':/Macintosh|Mac OS X/i.test(p)?'macos':'linux';").await else { return; };
+        if let Some(value) = value.as_str() {
+            detected_platform.set(value.into());
         }
     });
-    let plan = manifest.platforms.get(&platform()).cloned();
+    let platform = (navigation.view)().platform.unwrap_or(detected_platform());
+    let plan = manifest.platforms.get(&platform).cloned();
     let install = format!(
         "npx -y @zjarlin/aio tool install {} --version {}",
         manifest.id, manifest.version
@@ -47,7 +50,7 @@ pub(crate) fn CliDetails(
         p { class: "admin-meta", "也可以在目标设备的终端安装；终端安装会显示命令并等待确认。" }
         nav { class: "extension-browser__tabs", role: "tablist", aria_label: "CLI 安装平台",
             for (id,label) in [("macos","macOS"),("windows","Windows"),("linux","Linux")] {
-                button { role: "tab", "aria-selected": platform()==id, onclick: move |_| platform.set(id.into()), "{label}" }
+                button { role: "tab", "aria-selected": platform==id, onclick: move |_| navigation.change(|view|view.platform=Some(id.into())), "{label}" }
             }
         }
         div { role: "tabpanel",

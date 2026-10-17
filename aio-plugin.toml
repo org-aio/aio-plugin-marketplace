@@ -1,5 +1,20 @@
-[plugin.client]
-path = "client"
+schema_version = 2
 
-[plugin.server]
-path = "server"
+[plugin]
+required_permissions = ["plugin:manage"]
+
+[plugin.marketplace]
+title = "插件市场"
+summary = "独立交付的插件安装、升级、回滚与设备 CLI 管理。"
+license = "MIT"
+tags = ["system", "marketplace"]
+
+[plugin.runtime]
+artifact = "dist/marketplace.wasm"
+host_version = ">=2026.10.17"
+
+[plugin.frontend]
+path = "dist/frontend"
+
+[plugin.capabilities]
+management = true

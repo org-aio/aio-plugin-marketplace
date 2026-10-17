@@ -16,15 +16,18 @@ pub(super) fn PluginTree(
     selected: Option<String>,
     search: String,
     installed_only: bool,
+    cli_only: bool,
+    on_kind: Callback<bool>,
     on_filter: Callback<bool>,
     loaded: bool,
     on_search: Callback<String>,
     on_select: Callback<String>,
 ) -> Element {
-    let mut cli_only = use_signal(|| false);
+    let mut draft = use_signal(|| search.clone());
+    use_effect(use_reactive((&search,), move |(search,)| draft.set(search)));
     let entries = entries
         .into_iter()
-        .filter(|entry| !cli_only() || entry.cli.is_some())
+        .filter(|entry| !cli_only || entry.cli.is_some())
         .collect::<Vec<_>>();
     let mut installed_open = use_signal(|| true);
     let mut available_open = use_signal(|| true);
@@ -32,13 +35,16 @@ pub(super) fn PluginTree(
         && (installed_only || forest(&entries, false, search.trim()).is_empty());
     rsx! {
         h1 { class: "extension-browser__title", "插件市场" }
-        div { class:"extension-browser__search", Input {aria_label:"搜索插件",placeholder:"搜索插件",value:search.clone(),oninput:move|e:FormEvent|on_search.call(e.value())} }
+        form { class:"extension-browser__search", onsubmit: move |event| { event.prevent_default(); on_search.call(draft()); },
+            Input { aria_label:"搜索插件", placeholder:"搜索插件", maxlength:128, value:draft(), oninput:move|e:FormEvent|draft.set(e.value()) }
+            Button { r#type:"submit", variant:ButtonVariant::Outline, "搜索" }
+        }
         div { class: "extension-browser__filters", role: "group", aria_label: "插件筛选",
             for (only, label) in [(false, "全部"), (true, "已安装")] { Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: (installed_only == only).to_string(), onclick: move |_| on_filter.call(only), "{label}" } }
         }
         div { class: "extension-browser__filters", role: "group", aria_label: "插件类型",
-            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: (!cli_only()).to_string(), onclick: move |_| cli_only.set(false), "所有类型" }
-            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: cli_only().to_string(), onclick: move |_| cli_only.set(true), "CLI" }
+            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: (!cli_only).to_string(), onclick: move |_| on_kind.call(false), "所有类型" }
+            Button { size: ButtonSize::Sm, variant: ButtonVariant::Ghost, aria_pressed: cli_only.to_string(), onclick: move |_| on_kind.call(true), "CLI" }
         }
         if loaded && no_matches {
             if entries.is_empty() { EmptyState { title: "还没有发布的插件", detail: "插件构建和发布成功后会自动出现在这里。" } }

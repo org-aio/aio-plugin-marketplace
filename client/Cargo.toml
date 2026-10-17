@@ -5,15 +5,15 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-az-tool = { git = "https://github.com/zjarlin/aio-platform.git", rev = "d83cda2f6be3200c4fc8204c08427293b608a019" }
-az-dioxus-admin-shell = { git = "https://github.com/zjarlin/dioxus-admin-workbench.git", rev = "cc676107118a3fa83ac891dd97e35279ab9bebbd" }
-az-ui-components = { git = "https://github.com/zjarlin/dioxus-admin-workbench.git", rev = "cc676107118a3fa83ac891dd97e35279ab9bebbd" }
-dill = "0.15.0"
-dioxus = { version = "=0.7.9", default-features = false, features = ["macro", "html", "signals"] }
+az-tool = { git = "https://github.com/org-aio/aio-platform.git", rev = "f8e6fb6a4093541ff93d1fd70c9b5497b077c5e1" }
+az-ui-components = { git = "https://github.com/zjarlin/dioxus-admin-workbench.git", rev = "071324ed60909f755f19120dcfe3346c73f0ab5d" }
+dioxus = { version = "=0.7.9", default-features = false, features = ["macro", "html", "signals", "hooks", "document", "web", "launch"] }
 dioxus-icons = { version = "0.1.0", default-features = false }
-gloo-net = { version = "0.6.0", features = ["http", "json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
+
+url = "2.5.7"
+web-sys = { version = "0.3.77", features = ["Window", "Location"] }
 
 [lints]
 workspace = true
