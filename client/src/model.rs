@@ -39,6 +39,7 @@ pub(super) struct MarketplaceCapabilities {
 #[serde(rename_all = "snake_case")]
 pub(super) enum PluginState {
     Active,
+    Suspended,
     Disabled,
     Failed,
 }
@@ -62,6 +63,7 @@ impl MarketplaceEntry {
         } else {
             match self.state {
                 Some(PluginState::Active) => "已启用",
+                Some(PluginState::Suspended) => "运行环境已暂停",
                 Some(PluginState::Disabled) => "已停用",
                 Some(PluginState::Failed) => "失败",
                 None => "已安装",

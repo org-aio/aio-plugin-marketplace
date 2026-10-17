@@ -109,7 +109,7 @@ pub(super) fn PluginDetails(
             if !entry.installed { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"install".into())) }, Download {} "安装" } }
             else {
                 span { class: "admin-status", "data-enabled": entry.state == Some(PluginState::Active), "工作区：{entry.state_label()}" }
-                if entry.state != Some(PluginState::Active) { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"enable".into())) }, Play {} "启用" } }
+                if !matches!(entry.state, Some(PluginState::Active | PluginState::Suspended)) { Button { disabled: busy || !parent_ready, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),"enable".into())) }, Play {} "启用" } }
             }
             if entry.installed { details { class: "extension-browser__menu",
                 summary { title: "管理插件", aria_label: "管理插件", Settings {} }
@@ -117,7 +117,7 @@ pub(super) fn PluginDetails(
                     button { role: "menuitem", disabled: busy, onclick: { let entry=entry.clone(); move |_| on_action.call((entry.clone(), if entry.menu_hidden {"show-menu"} else {"hide-menu"}.into())) },
                         if entry.menu_hidden { Eye {} "显示菜单" } else { EyeOff {} "隐藏菜单" }
                     }
-                    for (action,label) in if entry.state==Some(PluginState::Active) { vec![("disable","停用"),("rollback","回退版本"),("uninstall","卸载")] } else { vec![("rollback","回退版本"),("uninstall","卸载")] } {
+                    for (action,label) in if matches!(entry.state, Some(PluginState::Active | PluginState::Suspended)) { vec![("disable","停用"),("rollback","回退版本"),("uninstall","卸载")] } else { vec![("rollback","回退版本"),("uninstall","卸载")] } {
                         button { role: "menuitem", disabled: busy, onclick: { let entry=entry.clone();move |_| on_action.call((entry.clone(),action.into())) },
                             match action { "disable"=>rsx!{Pause{}},"enable"=>rsx!{Play{}},"rollback"=>rsx!{RotateCcw{}},_=>rsx!{Trash2{}} } "{label}"
                         }
@@ -126,12 +126,15 @@ pub(super) fn PluginDetails(
                 }
             } }
         }
-        if entry.installed { p { class: "admin-meta", "租户成员自动获得插件全部权限，无需按角色配置。" } }
-        if entry.menu_hidden { p { class: "admin-meta", "菜单已隐藏，插件继续运行，业务数据保留。可在管理插件中恢复显示。" } }
+        if entry.state == Some(PluginState::Suspended) {
+            p { class: "admin-meta", "运行环境暂不可用，已安装版本和数据保留。联系部署管理员恢复运行环境后，插件将继续运行。" }
+        } else if entry.state == Some(PluginState::Active) { p { class: "admin-meta", "租户成员自动获得插件声明的业务权限；宿主管理权限仍按角色授权。" } }
+        if entry.menu_hidden { p { class: "admin-meta", "菜单已隐藏，可在管理插件中恢复显示。" } }
         if entry.parent_git.is_some() {
             p { class: "admin-meta", "父插件：{parent.map(|p|p.title.as_str()).or(entry.parent_title.as_deref()).unwrap_or(\"尚未发布\")}" }
             if !parent_ready { if let Some(parent) = parent {
-                Button { disabled: busy, variant: ButtonVariant::Outline, onclick: { let parent=parent.clone(); move |_| on_action.call((parent.clone(),if parent.installed {"enable"}else{"install"}.into())) }, Download {} "安装并启用父插件" }
+                if parent.state == Some(PluginState::Suspended) { p { class: "admin-meta", "父插件运行环境已暂停。" } }
+                else { Button { disabled: busy, variant: ButtonVariant::Outline, onclick: { let parent=parent.clone(); move |_| on_action.call((parent.clone(),if parent.installed {"enable"}else{"install"}.into())) }, Download {} "安装并启用父插件" } }
             } }
         }
         if !children.is_empty() {

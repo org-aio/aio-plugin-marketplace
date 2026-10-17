@@ -43,7 +43,7 @@ pub(super) fn ReleaseHistory(
             for version in &info.versions {
                 article { class: "workbench-technical",
                     strong { "{version.version}" } p { "{version.created_at}" }
-                    if entry.active_revision.as_deref() == Some(&version.revision) { span { class: "admin-status", "data-enabled": true, "当前工作区正在使用" } }
+                    if entry.active_revision.as_deref() == Some(&version.revision) { span { class: "admin-status", "data-enabled": true, "当前工作区已安装" } }
                     details { summary { "版本技术详情" }
                         p { "包版本：" code { "{version.revision}" } }
                         if let Some(source) = &version.source_revision { p { "源代码：" code { "{source}" } } }
