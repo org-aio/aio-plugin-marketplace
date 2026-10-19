@@ -35,6 +35,28 @@ pub(super) async fn action(source: &str, action: &str) -> Result<(), String> {
     .map(|_| ())
 }
 
+/// 设置或更新一条导航标签覆盖；只发送新的显示名。
+pub(super) async fn set_navigation_label(kind: &str, key: &str, label: &str) -> Result<(), String> {
+    send::<serde_json::Value, _>(
+        "POST",
+        "/api/runtime/navigation/labels",
+        Some(&serde_json::json!({"kind":kind,"key":key,"label":label})),
+    )
+    .await
+    .map(|_| ())
+}
+
+/// 恢复整包声明的默认显示名。
+pub(super) async fn clear_navigation_label(kind: &str, key: &str) -> Result<(), String> {
+    send::<serde_json::Value, _>(
+        "DELETE",
+        "/api/runtime/navigation/labels",
+        Some(&serde_json::json!({"kind":kind,"key":key})),
+    )
+    .await
+    .map(|_| ())
+}
+
 pub(super) async fn retry(id: &str) -> Result<(), String> {
     send::<serde_json::Value, ()>(
         "POST",

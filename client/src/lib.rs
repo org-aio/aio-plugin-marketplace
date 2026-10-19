@@ -1,6 +1,7 @@
 mod cli;
 mod details;
 mod family;
+mod labels;
 mod http;
 mod model;
 mod page;

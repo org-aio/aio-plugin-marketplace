@@ -50,6 +50,8 @@ pub(super) fn PluginDetails(
         .flatten();
     let navigation = use_context::<super::navigation::Navigation>();
     let mut interaction_error = use_signal(|| None::<String>);
+    let mut renaming = use_signal(|| false);
+    let mut label_refresh = use_signal(|| 0_u64);
     let interaction = use_callback(
         move |(operation, parameters): (&'static str, serde_json::Value)| {
             interaction_error.set(None);
@@ -136,6 +138,7 @@ pub(super) fn PluginDetails(
                             match action { "disable"=>rsx!{Pause{}},"enable"=>rsx!{Play{}},"rollback"=>rsx!{RotateCcw{}},_=>rsx!{Trash2{}} } "{label}"
                         }
                     }
+                    button { role:"menuitem", onclick: move |_| renaming.set(!renaming()), Settings {} if renaming() { "收起导航名称" } else { "重命名导航" } }
                     button { role:"menuitem", onclick: {let revision=entry.rev.clone(); move |_| interaction.call(("download",serde_json::json!({"revision":revision})))}, Download {} "下载插件包" }
                 }
             } }
@@ -144,6 +147,16 @@ pub(super) fn PluginDetails(
             p { class: "admin-meta", "运行环境暂不可用，已安装版本和数据保留。联系部署管理员恢复运行环境后，插件将继续运行。" }
         } else if entry.state == Some(PluginState::Active) { p { class: "admin-meta", "租户成员自动获得插件声明的业务权限；宿主管理权限仍按角色授权。" } }
         if entry.menu_hidden { p { class: "admin-meta", "菜单已隐藏，可在管理插件中恢复显示。" } }
+        if renaming() {
+            super::labels::NavigationLabels {
+                git: entry.git.clone(),
+                title: entry.title.clone(),
+                busy,
+                refresh: label_refresh(),
+                on_close: move |_| renaming.set(false),
+                on_saved: move |_| label_refresh += 1,
+            }
+        }
         if entry.parent_git.is_some() {
             p { class: "admin-meta", "父插件：{parent.map(|p|p.title.as_str()).or(entry.parent_title.as_deref()).unwrap_or(\"尚未发布\")}" }
             if !parent_ready { if let Some(parent) = parent {
